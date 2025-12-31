@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/asjer/rubocop-asjer/compare/v0.1.0...v0.1.1) (2025-12-31)
+
+
+### Bug Fixes
+
+* change GitHub Action to use rubygems/release-gem@v1 for publishing ([a40535a](https://github.com/asjer/rubocop-asjer/commit/a40535a45b92b9cb082723f3e74e21e566e14bb0))
+
 ## 0.1.0 (2025-12-31)
 
 
