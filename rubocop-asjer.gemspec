@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
   spec.metadata['source_code_uri'] = 'https://github.com/asjer/rubocop-asjer'
   spec.metadata['changelog_uri'] = 'https://github.com/asjer/rubocop-asjer/blob/main/CHANGELOG.md'
   spec.metadata['rubygems_mfa_required'] = 'true'
+  spec.metadata['default_lint_roller_plugin'] = 'RuboCop::Asjer::Plugin'
 
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
@@ -30,5 +31,6 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'rubocop', '>= 1.0'
+  spec.add_dependency 'lint_roller', '~> 1.1'
+  spec.add_dependency 'rubocop', '>= 1.72.0'
 end

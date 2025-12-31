@@ -3,7 +3,7 @@
 require 'rubocop'
 
 require_relative 'asjer/version'
-require_relative 'asjer/inject'
+require_relative 'asjer/plugin'
 require_relative 'cop/asjer/no_default_translation'
 
 module RuboCop

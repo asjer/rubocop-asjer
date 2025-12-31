@@ -21,9 +21,11 @@ bundle install
 Add to your `.rubocop.yml`:
 
 ```yaml
-require:
+plugins:
   - rubocop-asjer
 ```
+
+> **Note:** The `plugins` directive requires RuboCop 1.72+. For older versions, use `require: rubocop-asjer` instead.
 
 ## Available Cops
 
