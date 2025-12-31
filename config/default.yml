@@ -1,0 +1,4 @@
+Asjer/NoDefaultTranslation:
+  Description: Checks for use of the `default:` option in translation calls.
+  Enabled: true
+  VersionAdded: "0.1.0"
