@@ -1,0 +1,10 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "package-name": "rubocop-asjer",
+      "version-file": "lib/rubocop/asjer/version.rb",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
