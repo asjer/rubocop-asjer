@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/asjer/rubocop-asjer/compare/v0.3.0...v0.3.1) (2026-01-03)
+
+
+### Bug Fixes
+
+* enable autocorrect for all `default:` option cases in `NoDefaultTranslation` ([fbd359e](https://github.com/asjer/rubocop-asjer/commit/fbd359e6f252188880535c87b3f5abbbd8bac571))
+
 ## [0.3.0](https://github.com/asjer/rubocop-asjer/compare/v0.2.0...v0.3.0) (2026-01-03)
 
 
