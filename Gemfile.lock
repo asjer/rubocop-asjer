@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rubocop-asjer (0.3.0)
+    rubocop-asjer (0.3.1)
       lint_roller (~> 1.1)
       rubocop (>= 1.72.0)
 
