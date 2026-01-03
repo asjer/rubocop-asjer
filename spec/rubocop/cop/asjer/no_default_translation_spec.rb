@@ -3,34 +3,40 @@
 RSpec.describe RuboCop::Cop::Asjer::NoDefaultTranslation, :config do
   let(:config) { RuboCop::Config.new }
 
-  it 'registers an offense when using t with default option' do
+  # rubocop:disable RSpec/ExampleLength
+  it 'registers an offense and autocorrects when using t with default option' do
     expect_offense(<<~RUBY)
       t('some.key', default: 'fallback text')
                     ^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/NoDefaultTranslation: Define translations in locale files instead of using `default:`.
     RUBY
 
-    expect_no_corrections
+    expect_correction(<<~RUBY)
+      t('some.key')
+    RUBY
   end
 
-  it 'registers an offense when using I18n.t with default option' do
+  it 'registers an offense and autocorrects when using I18n.t with default option' do
     expect_offense(<<~RUBY)
       I18n.t('some.key', default: 'fallback')
                          ^^^^^^^^^^^^^^^^^^^ Asjer/NoDefaultTranslation: Define translations in locale files instead of using `default:`.
     RUBY
 
-    expect_no_corrections
+    expect_correction(<<~RUBY)
+      I18n.t('some.key')
+    RUBY
   end
 
-  it 'registers an offense when using I18n.translate with default option' do
+  it 'registers an offense and autocorrects when using I18n.translate with default option' do
     expect_offense(<<~RUBY)
       I18n.translate('some.key', default: t('other.key'))
                                  ^^^^^^^^^^^^^^^^^^^^^^^ Asjer/NoDefaultTranslation: Define translations in locale files instead of using `default:`.
     RUBY
 
-    expect_no_corrections
+    expect_correction(<<~RUBY)
+      I18n.translate('some.key')
+    RUBY
   end
 
-  # rubocop:disable RSpec/ExampleLength
   it 'registers an offense and autocorrects when default is used with other options' do
     expect_offense(<<~RUBY)
       t('some.key', scope: :admin, default: 'text', count: 1)
