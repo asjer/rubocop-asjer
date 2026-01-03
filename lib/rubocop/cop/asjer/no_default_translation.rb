@@ -51,8 +51,8 @@ module RuboCop
         end
 
         def hash_with_comma_range(hash_node)
-          # Remove the comma before the hash and the hash itself
-          range_between(hash_node.source_range.begin_pos - 2, hash_node.source_range.end_pos)
+          with_space = range_with_surrounding_space(range: hash_node.source_range, side: :left)
+          range_with_surrounding_comma(with_space, :left)
         end
 
         def pair_removal_range(node, pairs)
