@@ -34,9 +34,6 @@ module RuboCop
         def on_send(node)
           translation_with_default?(node) do |default_pair|
             add_offense(default_pair) do |corrector|
-              # Skip autocorrection if default: is the only hash option
-              next if default_pair.parent.pairs.size == 1
-
               corrector.remove(removal_range(default_pair))
             end
           end
@@ -45,7 +42,20 @@ module RuboCop
         private
 
         def removal_range(node)
-          pairs = node.parent.pairs
+          hash_node = node.parent
+          pairs = hash_node.pairs
+
+          return hash_with_comma_range(hash_node) if pairs.size == 1
+
+          pair_removal_range(node, pairs)
+        end
+
+        def hash_with_comma_range(hash_node)
+          with_space = range_with_surrounding_space(range: hash_node.source_range, side: :left)
+          range_with_surrounding_comma(with_space, :left)
+        end
+
+        def pair_removal_range(node, pairs)
           index = pairs.index(node)
 
           last_pair?(index, pairs) ? leading_range(node, pairs[index - 1]) : trailing_range(node, pairs[index + 1])
