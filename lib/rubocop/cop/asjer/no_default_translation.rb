@@ -19,6 +19,9 @@ module RuboCop
       #   I18n.t('some.key')
       #
       class NoDefaultTranslation < Base
+        extend AutoCorrector
+        include RangeHelp
+
         MSG = 'Define translations in locale files instead of using `default:`.'
 
         RESTRICT_ON_SEND = %i[t translate].freeze
@@ -30,8 +33,34 @@ module RuboCop
 
         def on_send(node)
           translation_with_default?(node) do |default_pair|
-            add_offense(default_pair)
+            add_offense(default_pair) do |corrector|
+              # Skip autocorrection if default: is the only hash option
+              next if default_pair.parent.pairs.size == 1
+
+              corrector.remove(removal_range(default_pair))
+            end
           end
+        end
+
+        private
+
+        def removal_range(node)
+          pairs = node.parent.pairs
+          index = pairs.index(node)
+
+          last_pair?(index, pairs) ? leading_range(node, pairs[index - 1]) : trailing_range(node, pairs[index + 1])
+        end
+
+        def last_pair?(index, pairs)
+          index == pairs.size - 1
+        end
+
+        def leading_range(node, prev_pair)
+          range_between(prev_pair.source_range.end_pos, node.source_range.end_pos)
+        end
+
+        def trailing_range(node, next_pair)
+          range_between(node.source_range.begin_pos, next_pair.source_range.begin_pos)
         end
       end
     end
