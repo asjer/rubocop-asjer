@@ -1,0 +1,278 @@
+# frozen_string_literal: true
+
+# rubocop:disable RSpec/ExampleLength
+RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
+  let(:config) { RuboCop::Config.new }
+
+  it 'registers an offense when associations come after callbacks' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_create :set_name
+        ^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        belongs_to :role
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :role
+
+        before_create :set_name
+      end
+    RUBY
+  end
+
+  it 'registers an offense when methods are out of order' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :plan
+        ^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        validate :validate_name
+        after_create :after_create_1
+        has_many :messages
+        attr_readonly :email
+        after_create :after_create_2
+        belongs_to :role
+        before_create :set_name
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :plan
+        belongs_to :role
+        has_many :messages
+
+        validate :validate_name
+        before_create :set_name
+        after_create :after_create_1
+        after_create :after_create_2
+
+        attr_readonly :email
+      end
+    RUBY
+  end
+
+  it 'registers an offense when callbacks are out of order' do
+    expect_offense(<<~RUBY)
+      class Post < ApplicationRecord
+        after_save :do_something
+        ^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        before_save :do_first
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class Post < ApplicationRecord
+        before_save :do_first
+        after_save :do_something
+      end
+    RUBY
+  end
+
+  it 'registers an offense when others come before callbacks' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        attr_readonly :email
+        ^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        before_save :encrypt_email
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :encrypt_email
+
+        attr_readonly :email
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when methods are in correct order' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :plan
+        belongs_to :role
+        has_many :messages
+
+        validate :validate_name
+        before_create :set_name
+        after_create :after_create_1
+
+        attr_readonly :email
+      end
+    RUBY
+  end
+
+  it 'does not register an offense for a class with only associations' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :plan
+        has_many :messages
+      end
+    RUBY
+  end
+
+  it 'does not register an offense for a class with only callbacks' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :do_first
+        after_save :do_last
+      end
+    RUBY
+  end
+
+  it 'does not register an offense for an empty class' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+      end
+    RUBY
+  end
+
+  it 'does not register an offense for a class with no declarative methods' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        def some_method
+          :ok
+        end
+      end
+    RUBY
+  end
+
+  it 'ignores non-declarative methods when checking order' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :plan
+
+        def some_method
+          :ok
+        end
+
+        before_save :do_something
+
+        attr_readonly :email
+      end
+    RUBY
+  end
+
+  it 'does not autocorrect when non-declarative methods are between declarative methods' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :do_something
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+
+        def some_method
+          :ok
+        end
+
+        belongs_to :plan
+      end
+    RUBY
+
+    expect_no_corrections
+  end
+
+  it 'handles has_one and has_and_belongs_to_many' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :do_something
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        has_one :profile
+        has_and_belongs_to_many :roles
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        has_one :profile
+        has_and_belongs_to_many :roles
+
+        before_save :do_something
+      end
+    RUBY
+  end
+
+  it 'handles validates and validate correctly' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :do_something
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        validates :name, presence: true
+        validate :custom_validation
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        validates :name, presence: true
+        validate :custom_validation
+        before_save :do_something
+      end
+    RUBY
+  end
+
+  it 'handles serialize' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        serialize :preferences
+        ^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        belongs_to :role
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :role
+
+        serialize :preferences
+      end
+    RUBY
+  end
+
+  context 'with custom configuration' do
+    let(:config) do
+      RuboCop::Config.new(
+        'Asjer/RailsClassOrder' => {
+          'Associations' => %w[has_many belongs_to],
+          'Callbacks' => %w[after_save before_save],
+          'Others' => %w[serialize]
+        }
+      )
+    end
+
+    it 'respects custom association order' do
+      expect_offense(<<~RUBY)
+        class User < ApplicationRecord
+          belongs_to :role
+          ^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: associations, callbacks, then others.
+          has_many :posts
+        end
+      RUBY
+
+      expect_correction(<<~RUBY)
+        class User < ApplicationRecord
+          has_many :posts
+          belongs_to :role
+        end
+      RUBY
+    end
+
+    it 'respects custom callback order' do
+      expect_offense(<<~RUBY)
+        class User < ApplicationRecord
+          before_save :first
+          ^^^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: associations, callbacks, then others.
+          after_save :second
+        end
+      RUBY
+
+      expect_correction(<<~RUBY)
+        class User < ApplicationRecord
+          after_save :second
+          before_save :first
+        end
+      RUBY
+    end
+  end
+end
+# rubocop:enable RSpec/ExampleLength
