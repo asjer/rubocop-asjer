@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/asjer/rubocop-asjer/compare/v0.3.1...v0.4.0) (2026-01-23)
+
+
+### Features
+
+* add `RailsClassOrder` cop to enforce method ordering in Rails models ([#20](https://github.com/asjer/rubocop-asjer/issues/20)) ([bce5d9b](https://github.com/asjer/rubocop-asjer/commit/bce5d9b2affbf207ad34c99d574340d7437e3a04))
+
 ## [0.3.1](https://github.com/asjer/rubocop-asjer/compare/v0.3.0...v0.3.1) (2026-01-03)
 
 
