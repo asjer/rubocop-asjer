@@ -2,3 +2,40 @@ Asjer/NoDefaultTranslation:
   Description: Checks for use of the `default:` option in translation calls.
   Enabled: true
   VersionAdded: "0.1.0"
+
+Asjer/RailsClassOrder:
+  Description: Enforces consistent ordering of declarative methods in Rails models.
+  Enabled: true
+  VersionAdded: "0.4.0"
+  Include:
+    - 'app/models/**/*.rb'
+  Associations:
+    - belongs_to
+    - has_many
+    - has_one
+    - has_and_belongs_to_many
+  Callbacks:
+    - after_initialize
+    - after_find
+    - after_touch
+    - before_validation
+    - validates
+    - validate
+    - after_validation
+    - before_save
+    - around_save
+    - before_create
+    - around_create
+    - before_update
+    - around_update
+    - before_destroy
+    - around_destroy
+    - after_destroy
+    - after_update
+    - after_create
+    - after_save
+    - after_commit
+    - after_rollback
+  Others:
+    - attr_readonly
+    - serialize
