@@ -78,7 +78,7 @@ module RuboCop
           return if targets == sorted
 
           add_offense(body) do |corrector|
-            autocorrect(corrector, body, targets, sorted)
+            autocorrect(corrector, body, targets, sorted) if contiguous?(body, targets)
           end
         end
 
@@ -137,6 +137,11 @@ module RuboCop
 
         def method_list_for_type(type)
           { association: associations, callback: callbacks, other: others }[type]
+        end
+
+        def contiguous?(body, targets)
+          indices = targets.map { |t| body.children.index(t) }
+          indices.max - indices.min + 1 == indices.size
         end
 
         def autocorrect(corrector, _body, original, sorted)
