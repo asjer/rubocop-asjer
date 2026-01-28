@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/asjer/rubocop-asjer/compare/v0.4.1...v0.4.2) (2026-01-28)
+
+
+### Bug Fixes
+
+* add missing rails classes to `RailsClassOrder` cop configuration ([0ddc16a](https://github.com/asjer/rubocop-asjer/commit/0ddc16a165530b0aa5c4e0d37195324779fca9a8))
+
 ## [0.4.1](https://github.com/asjer/rubocop-asjer/compare/v0.4.0...v0.4.1) (2026-01-28)
 
 
