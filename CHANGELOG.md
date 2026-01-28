@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/asjer/rubocop-asjer/compare/v0.4.2...v0.4.3) (2026-01-28)
+
+
+### Bug Fixes
+
+* add 5 missing transactional callback shortcuts to `RailsClassOrder` cop ([9831a59](https://github.com/asjer/rubocop-asjer/commit/9831a592d9b25d9756dff93af7654c027f779964))
+
 ## [0.4.2](https://github.com/asjer/rubocop-asjer/compare/v0.4.1...v0.4.2) (2026-01-28)
 
 
