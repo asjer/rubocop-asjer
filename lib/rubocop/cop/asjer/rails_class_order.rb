@@ -79,7 +79,8 @@ module RuboCop
           before_update around_update after_update
           after_save
           before_destroy around_destroy after_destroy
-          after_commit after_rollback
+          before_commit after_commit after_rollback
+          after_save_commit after_create_commit after_update_commit after_destroy_commit
         ].freeze
 
         OTHERS = %w[
