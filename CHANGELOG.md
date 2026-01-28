@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/asjer/rubocop-asjer/compare/v0.4.0...v0.4.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* improve autocorrect functionality for `RailsClassOrder` cop and add Ruby 4.0 to ci ([#23](https://github.com/asjer/rubocop-asjer/issues/23)) ([16fc637](https://github.com/asjer/rubocop-asjer/commit/16fc63770f05f74e2bc005becd136af7d8ccb0d1))
+
 ## [0.4.0](https://github.com/asjer/rubocop-asjer/compare/v0.3.1...v0.4.0) (2026-01-23)
 
 
