@@ -65,8 +65,13 @@ Asjer/RailsClassOrder:
     - before_destroy
     - around_destroy
     - after_destroy
+    - before_commit
     - after_commit
     - after_rollback
+    - after_save_commit
+    - after_create_commit
+    - after_update_commit
+    - after_destroy_commit
   Others:
     - encrypts
     - normalizes
