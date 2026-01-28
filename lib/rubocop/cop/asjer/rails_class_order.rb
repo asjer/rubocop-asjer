@@ -5,11 +5,12 @@ module RuboCop
     module Asjer
       # Enforces consistent ordering of declarative methods in Rails models.
       #
-      # Methods are grouped into three categories: associations, callbacks,
-      # and others. Within each category, methods are sorted by their position
-      # in the configured list. Groups are separated by blank lines.
+      # Methods are grouped into seven categories following Rails Style Guide:
+      # scopes, attributes, enums, associations, validations, callbacks, and others.
+      # Within each category, methods are sorted by their position in the configured list.
+      # Groups are separated by blank lines.
       #
-      # The order is: associations, then callbacks, then others.
+      # The order is: scopes, attributes, enums, associations, validations, callbacks, then others.
       #
       # @example
       #   # bad
@@ -18,7 +19,9 @@ module RuboCop
       #     validate :validate_name
       #     after_create :after_create_1
       #     has_many :messages
+      #     scope :active, -> { where(active: true) }
       #     attr_readonly :email
+      #     enum :status, [:pending, :active]
       #     after_create :after_create_2
       #     belongs_to :role
       #     before_create :set_name
@@ -26,34 +29,64 @@ module RuboCop
       #
       #   # good
       #   class User < ApplicationRecord
+      #     scope :active, -> { where(active: true) }
+      #
+      #     attr_readonly :email
+      #
+      #     enum :status, [:pending, :active]
+      #
       #     belongs_to :plan
       #     belongs_to :role
       #     has_many :messages
       #
       #     validate :validate_name
+      #
       #     before_create :set_name
       #     after_create :after_create_1
       #     after_create :after_create_2
-      #
-      #     attr_readonly :email
       #   end
       #
       # Default method lists for RailsClassOrder cop
       module RailsClassOrderDefaults
+        SCOPES = %w[default_scope scope].freeze
+
+        ATTRIBUTES = %w[
+          attr_accessor attr_reader attr_writer attr_readonly
+          attribute serialize store store_accessor
+        ].freeze
+
+        ENUMS = %w[enum].freeze
+
         ASSOCIATIONS = %w[
-          belongs_to has_many has_one has_and_belongs_to_many
+          belongs_to has_one has_many has_and_belongs_to_many
+          has_one_attached has_many_attached
+        ].freeze
+
+        VALIDATIONS = %w[
+          validates validates_acceptance_of validates_associated
+          validates_comparison_of validates_confirmation_of validates_each
+          validates_exclusion_of validates_format_of validates_inclusion_of
+          validates_length_of validates_size_of validates_numericality_of
+          validates_presence_of validates_uniqueness_of validates_with
+          validate
         ].freeze
 
         CALLBACKS = %w[
           after_initialize after_find after_touch
-          before_validation validates validate after_validation
-          before_save around_save before_create around_create
-          before_update around_update before_destroy around_destroy
-          after_destroy after_update after_create after_save
+          before_validation after_validation
+          before_save around_save
+          before_create around_create after_create
+          before_update around_update after_update
+          after_save
+          before_destroy around_destroy after_destroy
           after_commit after_rollback
         ].freeze
 
-        OTHERS = %w[attr_readonly serialize].freeze
+        OTHERS = %w[
+          encrypts normalizes delegate delegate_missing_to
+          accepts_nested_attributes_for has_secure_password
+          has_secure_token generates_token_for composed_of
+        ].freeze
       end
 
       # Autocorrect helpers for RailsClassOrder cop
@@ -101,8 +134,11 @@ module RuboCop
         def build_sorted_source(sorted, original)
           indent = ' ' * original.first.loc.column
           grouped = sorted.group_by { |m| method_type(m) }
+          format_grouped_source(grouped, indent)
+        end
 
-          %i[association callback other].filter_map do |type|
+        def format_grouped_source(grouped, indent)
+          self.class::TYPE_ORDER.keys.filter_map do |type|
             next unless grouped[type]&.any?
 
             grouped[type].map { |m| source_with_comments(m) }.join("\n#{indent}")
@@ -123,8 +159,28 @@ module RuboCop
         include RangeHelp
         include RailsClassOrderCorrector
 
-        MSG = 'Declarative methods should be sorted by type: associations, callbacks, then others.'
-        TYPE_ORDER = { association: 0, callback: 1, other: 2 }.freeze
+        MSG = 'Declarative methods should be sorted by type: scopes, attributes, enums, ' \
+              'associations, validations, callbacks, then others.'
+
+        TYPE_ORDER = {
+          scope: 0,
+          attribute: 1,
+          enum: 2,
+          association: 3,
+          validation: 4,
+          callback: 5,
+          other: 6
+        }.freeze
+
+        CATEGORY_CONFIG = {
+          scope: { key: 'Scopes', const: :SCOPES },
+          attribute: { key: 'Attributes', const: :ATTRIBUTES },
+          enum: { key: 'Enums', const: :ENUMS },
+          association: { key: 'Associations', const: :ASSOCIATIONS },
+          validation: { key: 'Validations', const: :VALIDATIONS },
+          callback: { key: 'Callbacks', const: :CALLBACKS },
+          other: { key: 'Others', const: :OTHERS }
+        }.freeze
 
         def on_class(node)
           _name, _superclass, body = *node
@@ -146,20 +202,17 @@ module RuboCop
           add_offense(first_misplaced) { |corrector| autocorrect(corrector, body, targets, sorted) }
         end
 
-        def associations
-          @associations ||= cop_config.fetch('Associations', RailsClassOrderDefaults::ASSOCIATIONS).map(&:to_sym)
-        end
-
-        def callbacks
-          @callbacks ||= cop_config.fetch('Callbacks', RailsClassOrderDefaults::CALLBACKS).map(&:to_sym)
-        end
-
-        def others
-          @others ||= cop_config.fetch('Others', RailsClassOrderDefaults::OTHERS).map(&:to_sym)
+        def category_methods(category)
+          cfg = CATEGORY_CONFIG[category]
+          instance_variable_get(:"@#{category}") ||
+            instance_variable_set(
+              :"@#{category}",
+              cop_config.fetch(cfg[:key], RailsClassOrderDefaults.const_get(cfg[:const])).map(&:to_sym)
+            )
         end
 
         def all_target_methods
-          @all_target_methods ||= associations + callbacks + others
+          @all_target_methods ||= TYPE_ORDER.keys.flat_map { |cat| category_methods(cat) }
         end
 
         def target_methods(body)
@@ -167,14 +220,16 @@ module RuboCop
         end
 
         def sort_methods(methods)
-          methods.each_with_index.sort_by { |m, i| [method_type_order(m), method_position_in_type(m), i] }.map(&:first)
+          methods.each_with_index.sort_by do |method, index|
+            [method_type_order(method), method_position_in_type(method), index]
+          end.map(&:first)
         end
 
         def method_type(method)
           name = method.method_name
-          return :association if associations.include?(name)
-          return :callback if callbacks.include?(name)
-
+          TYPE_ORDER.each_key do |category|
+            return category if category_methods(category).include?(name)
+          end
           :other
         end
 
@@ -183,11 +238,8 @@ module RuboCop
         end
 
         def method_position_in_type(method)
-          method_list_for_type(method_type(method)).index(method.method_name) || 999
-        end
-
-        def method_list_for_type(type)
-          { association: associations, callback: callbacks, other: others }[type]
+          list = category_methods(method_type(method))
+          list.index(method.method_name) || list.size
         end
       end
     end
