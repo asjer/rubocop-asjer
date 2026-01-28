@@ -3,12 +3,16 @@
 # rubocop:disable RSpec/ExampleLength
 RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
   let(:config) { RuboCop::Config.new }
+  let(:msg) do
+    'Asjer/RailsClassOrder: Declarative methods should be sorted by type: scopes, attributes, ' \
+      'enums, associations, validations, callbacks, then others.'
+  end
 
   it 'registers an offense when associations come after callbacks' do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         before_create :set_name
-        ^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
         belongs_to :role
       end
     RUBY
@@ -26,8 +30,8 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         belongs_to :plan
+        ^^^^^^^^^^^^^^^^ #{msg}
         validate :validate_name
-        ^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
         after_create :after_create_1
         has_many :messages
         attr_readonly :email
@@ -39,16 +43,17 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
 
     expect_correction(<<~RUBY)
       class User < ApplicationRecord
+        attr_readonly :email
+
         belongs_to :plan
         belongs_to :role
         has_many :messages
 
         validate :validate_name
+
         before_create :set_name
         after_create :after_create_1
         after_create :after_create_2
-
-        attr_readonly :email
       end
     RUBY
   end
@@ -57,7 +62,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class Post < ApplicationRecord
         after_save :do_something
-        ^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
         before_save :do_first
       end
     RUBY
@@ -70,20 +75,20 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     RUBY
   end
 
-  it 'registers an offense when others come before callbacks' do
+  it 'registers an offense when attributes come after callbacks' do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
-        attr_readonly :email
-        ^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
         before_save :encrypt_email
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+        attr_readonly :email
       end
     RUBY
 
     expect_correction(<<~RUBY)
       class User < ApplicationRecord
-        before_save :encrypt_email
-
         attr_readonly :email
+
+        before_save :encrypt_email
       end
     RUBY
   end
@@ -91,15 +96,18 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
   it 'does not register an offense when methods are in correct order' do
     expect_no_offenses(<<~RUBY)
       class User < ApplicationRecord
+        scope :active, -> { where(active: true) }
+
+        attr_readonly :email
+
         belongs_to :plan
         belongs_to :role
         has_many :messages
 
         validate :validate_name
+
         before_create :set_name
         after_create :after_create_1
-
-        attr_readonly :email
       end
     RUBY
   end
@@ -142,6 +150,8 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
   it 'does not register an offense when non-declarative methods are between correctly ordered declarative methods' do
     expect_no_offenses(<<~RUBY)
       class User < ApplicationRecord
+        attr_readonly :email
+
         belongs_to :plan
 
         def some_method
@@ -149,8 +159,6 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
         end
 
         before_save :do_something
-
-        attr_readonly :email
       end
     RUBY
   end
@@ -159,7 +167,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         before_save :do_something
-        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
 
         include Concerns::Trackable
 
@@ -183,7 +191,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         after_create :notify
-        ^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^ #{msg}
 
         STATUSES = %w[active inactive].freeze
 
@@ -207,7 +215,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         before_save :do_something
-        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
 
         def some_method
           :ok
@@ -236,7 +244,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
       class User < ApplicationRecord
         # Send welcome email
         after_create :send_welcome
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
         # Primary organization
         belongs_to :organization
       end
@@ -257,7 +265,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         before_save :do_something
-        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
         has_one :profile
         has_and_belongs_to_many :roles
       end
@@ -277,7 +285,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
         before_save :do_something
-        ^^^^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
         validates :name, presence: true
         validate :custom_validation
       end
@@ -287,25 +295,130 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
       class User < ApplicationRecord
         validates :name, presence: true
         validate :custom_validation
+
         before_save :do_something
       end
     RUBY
   end
 
-  it 'handles serialize' do
+  it 'handles serialize as attribute' do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
+        belongs_to :role
+        ^^^^^^^^^^^^^^^^ #{msg}
         serialize :preferences
-        ^^^^^^^^^^^^^^^^^^^^^^ Asjer/RailsClassOrder: Declarative methods should be sorted by type: associations, callbacks, then others.
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        serialize :preferences
+
+        belongs_to :role
+      end
+    RUBY
+  end
+
+  it 'handles scopes first' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :role
+        ^^^^^^^^^^^^^^^^ #{msg}
+        scope :active, -> { where(active: true) }
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        scope :active, -> { where(active: true) }
+
+        belongs_to :role
+      end
+    RUBY
+  end
+
+  it 'places scopes before associations and callbacks' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :do_something
+        ^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+        scope :active, -> { where(active: true) }
         belongs_to :role
       end
     RUBY
 
     expect_correction(<<~RUBY)
       class User < ApplicationRecord
+        scope :active, -> { where(active: true) }
+
         belongs_to :role
 
-        serialize :preferences
+        before_save :do_something
+      end
+    RUBY
+  end
+
+  it 'handles default_scope before scope' do
+    expect_no_offenses(<<~RUBY)
+      class User < ApplicationRecord
+        default_scope { where(deleted: false) }
+        scope :active, -> { where(active: true) }
+      end
+    RUBY
+  end
+
+  it 'handles enums between attributes and associations' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        belongs_to :role
+        ^^^^^^^^^^^^^^^^ #{msg}
+        enum :status, [:pending, :active]
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        enum :status, [:pending, :active]
+
+        belongs_to :role
+      end
+    RUBY
+  end
+
+  it 'separates validations from callbacks' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        after_save :notify
+        ^^^^^^^^^^^^^^^^^^ #{msg}
+        validates :name, presence: true
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        validates :name, presence: true
+
+        after_save :notify
+      end
+    RUBY
+  end
+
+  it 'handles Active Storage attachments' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        before_save :process_avatar
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+        has_one_attached :avatar
+        has_many_attached :documents
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        has_one_attached :avatar
+        has_many_attached :documents
+
+        before_save :process_avatar
       end
     RUBY
   end
@@ -325,7 +438,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
       expect_offense(<<~RUBY)
         class User < ApplicationRecord
           belongs_to :role
-          ^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: associations, callbacks, then others.
+          ^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: scopes, attributes, enums, associations, validations, callbacks, then others.
           has_many :posts
         end
       RUBY
@@ -342,7 +455,7 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
       expect_offense(<<~RUBY)
         class User < ApplicationRecord
           before_save :first
-          ^^^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: associations, callbacks, then others.
+          ^^^^^^^^^^^^^^^^^^ Declarative methods should be sorted by type: scopes, attributes, enums, associations, validations, callbacks, then others.
           after_save :second
         end
       RUBY
