@@ -423,6 +423,59 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     RUBY
   end
 
+  it 'does not leave excessive blank lines after autocorrect with interleaved non-target code' do
+    expect_offense(<<~RUBY)
+      class User < ApplicationRecord
+        include Trackable
+
+        attr_accessor :current_step
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+
+        has_person_name
+
+        has_one_attached :avatar
+        has_many :submissions
+
+        accepts_nested_attributes_for :submissions
+
+        scope :stale, -> { where(active: true) }
+
+        validates :name, presence: true
+
+        after_save :notify
+
+        def some_method
+          :ok
+        end
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class User < ApplicationRecord
+        include Trackable
+
+        scope :stale, -> { where(active: true) }
+
+        attr_accessor :current_step
+
+        has_many :submissions
+        has_one_attached :avatar
+
+        validates :name, presence: true
+
+        after_save :notify
+
+        accepts_nested_attributes_for :submissions
+
+        has_person_name
+
+        def some_method
+          :ok
+        end
+      end
+    RUBY
+  end
+
   context 'with custom configuration' do
     let(:config) do
       RuboCop::Config.new(
