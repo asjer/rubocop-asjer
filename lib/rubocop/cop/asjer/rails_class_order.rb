@@ -129,7 +129,19 @@ module RuboCop
           source = processed_source.buffer.source
           line_start = source.rindex("\n", range.begin_pos - 1)&.+(1) || 0
           end_pos = source[range.end_pos] == "\n" ? range.end_pos + 1 : range.end_pos
-          range_between(line_start, end_pos)
+
+          range_between(line_start, skip_trailing_blank_lines(source, end_pos))
+        end
+
+        def skip_trailing_blank_lines(source, pos)
+          while pos < source.length
+            line_end = source.index("\n", pos)
+            break unless line_end
+            break unless source[pos...line_end].strip.empty?
+
+            pos = line_end + 1
+          end
+          pos
         end
 
         def build_sorted_source(sorted, original)
