@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/asjer/rubocop-asjer/compare/v0.4.3...v0.4.4) (2026-02-10)
+
+
+### Bug Fixes
+
+* prevent excessive blank lines after autocorrect in `RailsClassOrder` cop ([56f6def](https://github.com/asjer/rubocop-asjer/commit/56f6deff1fab470ea5c7deac175d1d0088cd11f5))
+
 ## [0.4.3](https://github.com/asjer/rubocop-asjer/compare/v0.4.2...v0.4.3) (2026-01-28)
 
 
