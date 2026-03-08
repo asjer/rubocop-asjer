@@ -93,14 +93,29 @@ module RuboCop
       # Autocorrect helpers for RailsClassOrder cop
       module RailsClassOrderCorrector
         def autocorrect(corrector, body, original, sorted)
-          first_target = original.min_by { |m| body.children.index(m) }
-          new_source = build_sorted_source(sorted, original)
-          corrector.replace(range_with_comments(first_target), new_source.rstrip)
-
-          (original - [first_target]).each do |method|
-            corrector.remove(full_method_range(method))
-          end
+          ordered_targets = ordered_target_nodes(original)
+          corrector.replace(
+            correction_range_for(ordered_targets),
+            rebuilt_source(
+              sorted,
+              ordered_targets,
+              trailing_sibling: trailing_sibling?(body, ordered_targets.last)
+            )
+          )
         end
+
+        def ordered_target_nodes(original) = original.sort_by { |method| full_method_range(method).begin_pos }
+
+        def correction_range_for(ordered_targets)
+          # Stop at the last expression boundary so any newline/blank-line
+          # suffix after the final target stays in the surrounding source.
+          range_between(
+            range_with_comments(ordered_targets.first).begin_pos,
+            range_with_comments(ordered_targets.last).end_pos
+          )
+        end
+
+        def trailing_sibling?(body, last_target) = body.children.index(last_target) < body.children.size - 1
 
         def range_with_comments(node)
           comments = preceding_comments(node)
@@ -108,9 +123,7 @@ module RuboCop
           range_between(start_pos, node.loc.expression.end_pos)
         end
 
-        def preceding_comments(node)
-          collect_adjacent_comments(node.loc.expression)
-        end
+        def preceding_comments(node) = collect_adjacent_comments(node.loc.expression)
 
         def collect_adjacent_comments(node_pos)
           expected_line = node_pos.first_line - 1
@@ -144,10 +157,57 @@ module RuboCop
           pos
         end
 
-        def build_sorted_source(sorted, original)
-          indent = ' ' * original.first.loc.column
+        def build_sorted_source(sorted, reference_targets)
+          indent = ' ' * reference_targets.first.loc.column
           grouped = sorted.group_by { |m| method_type(m) }
           format_grouped_source(grouped, indent)
+        end
+
+        def rebuilt_source(sorted, ordered_targets, trailing_sibling:)
+          preserved = preserved_interstitial_source(ordered_targets)
+          rebuilt = [
+            build_sorted_source(sorted, ordered_targets).rstrip,
+            preserved
+          ].reject(&:empty?).join("\n\n")
+          trimmed = trim_trailing_newlines(rebuilt)
+
+          # Keep end-of-class output flush unless the final preserved chunk
+          # already carried a trailing blank line before it was moved.
+          return trimmed if trailing_sibling || !trailing_blank_line?(preserved)
+
+          "#{trimmed}\n"
+        end
+
+        def trim_trailing_newlines(source)
+          trimmed = source.dup
+          trimmed.chop! while trimmed.end_with?("\n")
+          trimmed
+        end
+
+        def trailing_blank_line?(source)
+          return false unless source&.end_with?("\n")
+
+          source[(source.rindex("\n", source.length - 2)&.+(1) || 0)...-1].strip.empty?
+        end
+
+        def preserved_interstitial_source(ordered_targets)
+          source = processed_source.buffer.source
+
+          ordered_targets
+            .map { |method| full_method_range(method) }
+            .each_cons(2)
+            .filter_map do |left, right|
+              normalize_interstitial_chunk(source[left.end_pos...right.begin_pos])
+            end
+            .join
+        end
+
+        def normalize_interstitial_chunk(chunk)
+          return if chunk.nil? || chunk.strip.empty?
+
+          # Strip leading blank lines only; trailing ones stay attached so later
+          # preserved chunks keep their separator spacing.
+          chunk.sub(/\A(?:[ \t]*\n)+/, '')
         end
 
         def format_grouped_source(grouped, indent)
