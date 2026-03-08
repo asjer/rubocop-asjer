@@ -239,6 +239,80 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     RUBY
   end
 
+  it 'does not delete alias_method between reordered declarative methods' do
+    expect_offense(<<~RUBY)
+      class Booking < ApplicationRecord
+        has_many :guests, dependent: :destroy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+        alias_method :payment, :pay_charge
+        belongs_to :pay_charge, class_name: 'Pay::Stripe::Charge', foreign_key: 'pay_charge_id', optional: true
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class Booking < ApplicationRecord
+        belongs_to :pay_charge, class_name: 'Pay::Stripe::Charge', foreign_key: 'pay_charge_id', optional: true
+        has_many :guests, dependent: :destroy
+
+        alias_method :payment, :pay_charge
+      end
+    RUBY
+  end
+
+  it 'preserves comments and non-target lines adjacent to reordered declarative methods' do
+    expect_offense(<<~RUBY)
+      class Booking < ApplicationRecord
+        # Guests attached to this booking
+        has_many :guests, dependent: :destroy
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{msg}
+        alias_method :payment, :pay_charge
+        # Legacy payment relation
+        belongs_to :pay_charge, class_name: 'Pay::Stripe::Charge', foreign_key: 'pay_charge_id', optional: true
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class Booking < ApplicationRecord
+        # Legacy payment relation
+        belongs_to :pay_charge, class_name: 'Pay::Stripe::Charge', foreign_key: 'pay_charge_id', optional: true
+        # Guests attached to this booking
+        has_many :guests, dependent: :destroy
+
+        alias_method :payment, :pay_charge
+      end
+    RUBY
+  end
+
+  it 'preserves multiple interstitial chunks between reordered declarative methods' do
+    expect_offense(<<~RUBY)
+      class Booking < ApplicationRecord
+        after_create :notify
+        ^^^^^^^^^^^^^^^^^^^^ #{msg}
+        alias_method :payment, :pay_charge
+
+        belongs_to :plan
+        alias_method :org, :organization
+
+        validates :name, presence: true
+      end
+    RUBY
+
+    expect_correction(<<~RUBY)
+      class Booking < ApplicationRecord
+        belongs_to :plan
+
+        validates :name, presence: true
+
+        after_create :notify
+
+        alias_method :payment, :pay_charge
+
+        alias_method :org, :organization
+
+      end
+    RUBY
+  end
+
   it 'preserves comments attached to declarative methods' do
     expect_offense(<<~RUBY)
       class User < ApplicationRecord
