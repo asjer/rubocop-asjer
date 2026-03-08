@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/asjer/rubocop-asjer/compare/v0.4.4...v0.4.5) (2026-03-08)
+
+
+### Bug Fixes
+
+* **rails_class_order:** prevent autocorrect from deleting interleaved non-target lines ([f7f1628](https://github.com/asjer/rubocop-asjer/commit/f7f162842e2188e99b24a53e55650bcaa678253f))
+
 ## [0.4.4](https://github.com/asjer/rubocop-asjer/compare/v0.4.3...v0.4.4) (2026-02-10)
 
 
