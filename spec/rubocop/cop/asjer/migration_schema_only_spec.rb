@@ -262,6 +262,23 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
       RUBY
     end
 
+    it 'accepts class methods and singleton classes, but still checks their bodies' do
+      expect_offense(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          def self.primary_key_type
+            :uuid
+          end
+
+          class << self
+            def backfill
+              execute 'SELECT 1'
+              ^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'execute')}
+            end
+          end
+        end
+      RUBY
+    end
+
     it 'accepts qualified references to constants the migration defines itself' do
       expect_no_offenses(<<~RUBY, migration_file)
         class Example < ActiveRecord::Migration[8.1]

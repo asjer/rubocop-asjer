@@ -172,6 +172,8 @@ module RuboCop
 
         def check_self(node)
           return if node.parent&.call_type? && node.parent.receiver.equal?(node)
+          # The target of `def self.name` or `class << self`; their bodies are still checked.
+          return if node.parent&.type?(:defs, :sclass) && node.parent.children.first.equal?(node)
 
           add_offense(node, message: SELF_MSG)
         end
