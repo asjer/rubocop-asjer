@@ -14,3 +14,8 @@ Bundler/OrderedGems:
 Style/StringLiterals:
   Description: Checks if uses of quotes match the configured preference.
   EnforcedStyle: single_quotes
+
+# expect_offense heredocs hold the code under test; count each as one line.
+RSpec/ExampleLength:
+  CountAsOne:
+    - heredoc

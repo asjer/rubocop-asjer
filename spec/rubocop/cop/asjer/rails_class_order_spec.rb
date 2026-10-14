@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable RSpec/ExampleLength
 RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
   let(:config) { RuboCop::Config.new }
   let(:msg) do
@@ -596,4 +595,3 @@ RSpec.describe RuboCop::Cop::Asjer::RailsClassOrder, :config do
     end
   end
 end
-# rubocop:enable RSpec/ExampleLength
