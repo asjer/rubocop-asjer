@@ -19,6 +19,10 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
       'in a maintenance task.'
   end
 
+  def options_msg
+    'Asjer/MigrationSchemaOnly: Write out the `change_column` options so `using:` SQL casts can be checked.'
+  end
+
   # A custom configuration does not display cop names.
   def unprefixed(message)
     message.delete_prefix('Asjer/MigrationSchemaOnly: ')
@@ -74,6 +78,23 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'public_send')}
             eval("execute 'SELECT 1'")
             ^^^^^^^^^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'eval')}
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense for reflective and dynamic calls on any receiver except block variables' do
+      expect_offense(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          def change
+            ''.itself.send(:eval, 'SELECT 1')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'send')}
+            [].instance_eval { execute 'SELECT 1' }
+            ^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'instance_eval')}
+                               ^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'execute')}
+            create_table :examples do |t|
+              t.public_send :string, :status
+            end
           end
         end
       RUBY
@@ -150,6 +171,9 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
                                                    ^^^^^^^^^^^ #{cast_msg}
             change_column :bookings, :date, :date, **{ using: 'date::date' }
                                                        ^^^^^^^^^^^^^^^^^^^ #{cast_msg}
+            options = { using: 'date::date' }
+            change_column :bookings, :date, :date, **options
+                                                   ^^^^^^^^^ #{options_msg}
           end
         end
       RUBY
@@ -260,6 +284,17 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
 
           def down
             raise ActiveRecord::IrreversibleMigration
+          end
+        end
+      RUBY
+    end
+
+    it 'checks migrations that inherit from ActiveRecord::Migration::Current' do
+      expect_offense(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration::Current
+          def up
+            execute 'SELECT 1'
+            ^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'execute')}
           end
         end
       RUBY

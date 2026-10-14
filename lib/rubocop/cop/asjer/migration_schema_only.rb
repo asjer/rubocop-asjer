@@ -3,48 +3,8 @@
 module RuboCop
   module Cop
     module Asjer
-      # Allows only schema statements in Rails migrations.
-      #
-      # Migrations change the schema. Raw SQL, model calls and other data
-      # changes skip validations and callbacks, are often irreversible, and
-      # belong in a maintenance task. This cop uses an allowlist: inside a
-      # migration class, implicit-receiver calls must be schema statements
-      # (`AllowedMethods`) or methods the migration defines itself, and only
-      # `AllowedConstants` and constants the migration defines may be referenced. Calls on block variables such as
-      # `t.string` and `direction.up` are fine. Anything else, including
-      # `execute`, `connection`, `send` and model constants, is an offense,
-      # so new raw-SQL routes are rejected without updating a denylist.
-      #
-      # Check constraints and expression indexes stay allowed: they keep the
-      # database consistent alongside model validations. `change_column` with
-      # `using:` is rejected because it is always a SQL cast.
-      #
-      # Set `StartAfter` to the version of the last existing migration to
-      # check only new migrations.
-      #
-      # @example
-      #   # bad
-      #   execute "UPDATE bookings SET source = 'web'"
-      #   select_value('SELECT 1')
-      #   connection.exec_query('SELECT 1')
-      #   Booking.where(source: nil).update_all(source: 'web')
-      #   add_index :bookings, Arel.sql('lower(code)')
-      #   change_column :bookings, :date, :date, using: 'date::date'
-      #
-      #   # good
-      #   create_table :examples do |t|
-      #     t.string :status, null: false
-      #   end
-      #   add_index :examples, 'lower(status)'
-      #   add_check_constraint :examples, "status IN ('open', 'closed')", name: :examples_status
-      #
-      class MigrationSchemaOnly < Base
-        CALL_MSG = 'Use only schema statements in migrations; move `%<name>s` and other data changes ' \
-                   'or raw SQL to a maintenance task.'
-        CONSTANT_MSG = 'Do not use `%<name>s` in migrations; move data changes and raw SQL to a maintenance task.'
-        CAST_MSG = '`change_column` with `using:` runs a SQL cast; add a new column and copy the data ' \
-                   'in a maintenance task.'
-
+      # Default lists for MigrationSchemaOnly.
+      module MigrationSchemaOnlyDefaults
         ALLOWED_METHODS = %w[
           create_table create_join_table change_table rename_table drop_table drop_join_table
           add_column remove_column remove_columns rename_column change_column
@@ -71,11 +31,64 @@ module RuboCop
 
         ALLOWED_CONSTANTS = %w[ActiveRecord::IrreversibleMigration Rails].freeze
 
+        # Calls that run code chosen at runtime; only block variables such as `t` may receive them.
+        DYNAMIC_CALLS = %i[
+          send public_send __send__ eval instance_eval instance_exec class_eval class_exec module_eval module_exec
+        ].freeze
+      end
+
+      # Allows only schema statements in Rails migrations.
+      #
+      # Migrations change the schema. Raw SQL, model calls and other data
+      # changes skip validations and callbacks, are often irreversible, and
+      # belong in a maintenance task. This cop uses an allowlist: inside a
+      # migration class, implicit-receiver calls must be schema statements
+      # (`AllowedMethods`) or methods the migration defines itself, and only
+      # `AllowedConstants` and constants the migration defines may be
+      # referenced. Calls on block variables such as `t.string` and
+      # `direction.up` are fine. Anything else, including `execute`,
+      # `connection`, `send` and model constants, is an offense, so new
+      # raw-SQL routes are rejected without updating a denylist.
+      #
+      # Check constraints and expression indexes stay allowed: they keep the
+      # database consistent alongside model validations. `change_column` with
+      # `using:` is rejected because it is always a SQL cast.
+      #
+      # Set `StartAfter` to the version of the last existing migration to
+      # check only new migrations.
+      #
+      # @example
+      #   # bad
+      #   execute "UPDATE bookings SET source = 'web'"
+      #   select_value('SELECT 1')
+      #   connection.exec_query('SELECT 1')
+      #   Booking.where(source: nil).update_all(source: 'web')
+      #   add_index :bookings, Arel.sql('lower(code)')
+      #   change_column :bookings, :date, :date, using: 'date::date'
+      #
+      #   # good
+      #   create_table :examples do |t|
+      #     t.string :status, null: false
+      #   end
+      #   add_index :examples, 'lower(status)'
+      #   add_check_constraint :examples, "status IN ('open', 'closed')", name: :examples_status
+      #
+      class MigrationSchemaOnly < Base
+        include MigrationSchemaOnlyDefaults
+
+        CALL_MSG = 'Use only schema statements in migrations; move `%<name>s` and other data changes ' \
+                   'or raw SQL to a maintenance task.'
+        CONSTANT_MSG = 'Do not use `%<name>s` in migrations; move data changes and raw SQL to a maintenance task.'
+        CAST_MSG = '`change_column` with `using:` runs a SQL cast; add a new column and copy the data ' \
+                   'in a maintenance task.'
+        OPTIONS_MSG = 'Write out the `change_column` options so `using:` SQL casts can be checked.'
+
         # @!method migration_class?(node)
         def_node_matcher :migration_class?, <<~PATTERN
           (class _ {
             (send (const (const {nil? cbase} :ActiveRecord) :Migration) :[] ...)
             (const (const {nil? cbase} :ActiveRecord) :Migration)
+            (const (const (const {nil? cbase} :ActiveRecord) :Migration) :Current)
           } _)
         PATTERN
 
@@ -111,6 +124,8 @@ module RuboCop
           receiver = node.receiver
           if receiver.nil? || receiver.self_type?
             !allowed_call?(node.method_name)
+          elsif DYNAMIC_CALLS.include?(node.method_name)
+            !receiver.lvar_type?
           else
             receiver.variable? && !receiver.lvar_type?
           end
@@ -122,8 +137,12 @@ module RuboCop
 
         def check_cast(node)
           node.arguments.each do |argument|
-            argument.each_node(:pair) do |pair|
-              add_offense(pair, message: CAST_MSG) if pair.key.sym_type? && pair.key.value == :using
+            argument.each_node(:pair, :kwsplat) do |option|
+              if option.kwsplat_type?
+                add_offense(option, message: OPTIONS_MSG) unless option.children.first.hash_type?
+              elsif option.key.sym_type? && option.key.value == :using
+                add_offense(option, message: CAST_MSG)
+              end
             end
           end
         end

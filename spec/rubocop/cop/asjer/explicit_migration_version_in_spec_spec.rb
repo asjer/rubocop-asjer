@@ -18,10 +18,12 @@ RSpec.describe RuboCop::Cop::Asjer::ExplicitMigrationVersionInSpec, :config do
     RUBY
   end
 
-  it 'registers an offense for migrate without a version' do
+  it 'registers an offense for migrate without a version or with nil' do
     expect_offense(<<~RUBY)
       migration_context.migrate
                         ^^^^^^^ #{format(msg, name: 'migrate')}
+      migration_context&.migrate(nil)
+                         ^^^^^^^ #{format(msg, name: 'migrate')}
     RUBY
   end
 

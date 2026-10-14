@@ -5,7 +5,7 @@ module RuboCop
     module Asjer
       # Requires migration specs to run migrations to an explicit version.
       #
-      # `rollback`, `forward` and `migrate` without a version move relative to
+      # `rollback`, `forward` and `migrate` without a version (or with `nil`) move relative to
       # the latest migration, so the spec breaks as soon as anyone adds an
       # unrelated migration. Name the version the spec is about instead.
       #
@@ -26,7 +26,7 @@ module RuboCop
         RESTRICT_ON_SEND = %i[rollback forward migrate].freeze
 
         def on_send(node)
-          return if node.method?(:migrate) && node.arguments?
+          return if node.method?(:migrate) && node.arguments? && !node.first_argument.nil_type?
 
           add_offense(node.loc.selector, message: format(MSG, name: node.method_name))
         end

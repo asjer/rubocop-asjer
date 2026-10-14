@@ -105,6 +105,9 @@ The cop uses an allowlist rather than a list of forbidden methods, so new raw-SQ
 - implicit-receiver calls must be schema statements (`AllowedMethods`) or methods the migration defines itself;
 - only `AllowedConstants` and constants the migration defines may be referenced;
 - calls on block variables such as `t.string` and `direction.up` are fine.
+- `send`, `public_send` and `eval`-style calls are rejected on any receiver except a block variable.
+
+The cop recognizes classes that inherit from `ActiveRecord::Migration[x.y]`, `ActiveRecord::Migration` or `ActiveRecord::Migration::Current`; migrations with a custom base class are not checked.
 
 Check constraints and expression indexes stay allowed: they keep the database consistent alongside model validations, which `update_all`, `update_column` and `insert_all` skip. `change_column` with `using:` is rejected because it is always a SQL cast.
 
@@ -142,7 +145,7 @@ Asjer/MigrationSchemaOnly:
 
 ### Asjer/ExplicitMigrationVersionInSpec
 
-Requires migration specs to run migrations to an explicit version. `rollback`, `forward` and `migrate` without a version move relative to the latest migration, so the spec breaks as soon as anyone adds an unrelated migration.
+Requires migration specs to run migrations to an explicit version. `rollback`, `forward` and `migrate` without a version (or with `nil`) move relative to the latest migration, so the spec breaks as soon as anyone adds an unrelated migration.
 
 ```ruby
 # bad
