@@ -23,6 +23,16 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
     'Asjer/MigrationSchemaOnly: Write out the `change_column` options so `using:` SQL casts can be checked.'
   end
 
+  def self_msg
+    'Asjer/MigrationSchemaOnly: Call schema statements on `self` directly; ' \
+      'passing `self` around hides calls from this check.'
+  end
+
+  def null_msg
+    'Asjer/MigrationSchemaOnly: The `change_column_null` replacement value updates existing rows; ' \
+      'backfill them in a maintenance task first.'
+  end
+
   # A custom configuration does not display cop names.
   def unprefixed(message)
     message.delete_prefix('Asjer/MigrationSchemaOnly: ')
@@ -100,6 +110,31 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
       RUBY
     end
 
+    it 'registers an offense for passing self around, which would hide calls behind a local' do
+      expect_offense(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          def up
+            migration = self
+                        ^^^^ #{self_msg}
+            migration.execute('DELETE FROM bookings')
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense for the NULL replacement of change_column_null, which updates rows' do
+      expect_offense(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          def change
+            change_column_null :bookings, :source, false, 'web'
+                                                          ^^^^^ #{null_msg}
+            change_column_null :bookings, :source, false
+            change_column_null :bookings, :source, false, nil
+          end
+        end
+      RUBY
+    end
+
     it 'registers an offense for models, Arel and other constants' do
       expect_offense(<<~RUBY, migration_file)
         class Example < ActiveRecord::Migration[8.1]
@@ -171,6 +206,10 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
                                                    ^^^^^^^^^^^ #{cast_msg}
             change_column :bookings, :date, :date, **{ using: 'date::date' }
                                                        ^^^^^^^^^^^^^^^^^^^ #{cast_msg}
+            change_table :bookings do |t|
+              t.change :date, :date, using: 'date::date'
+                                     ^^^^^^^^^^^^^^^^^^^ #{cast_msg}
+            end
             options = { using: 'date::date' }
             change_column :bookings, :date, :date, **options
                                                    ^^^^^^^^^ #{options_msg}
@@ -208,6 +247,28 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
               direction.up { change_column_null :examples, :status, false }
               direction.down { change_column_null :examples, :status, true }
             end
+          end
+        end
+      RUBY
+    end
+
+    it 'accepts using as a key inside a JSON default, which is data and not a cast' do
+      expect_no_offenses(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          def change
+            change_column :events, :metadata, :jsonb, default: { using: 'api' }
+          end
+        end
+      RUBY
+    end
+
+    it 'accepts qualified references to constants the migration defines itself' do
+      expect_no_offenses(<<~RUBY, migration_file)
+        class Example < ActiveRecord::Migration[8.1]
+          CONSTRAINT_NAME = :examples_status
+
+          def change
+            remove_check_constraint :examples, name: Example::CONSTRAINT_NAME
           end
         end
       RUBY

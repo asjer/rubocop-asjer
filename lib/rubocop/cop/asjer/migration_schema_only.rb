@@ -37,6 +37,45 @@ module RuboCop
         ].freeze
       end
 
+      # Checks the options of column changes for SQL casts and row updates.
+      module MigrationSchemaOnlyColumnChanges
+        CAST_MSG = '`change_column` with `using:` runs a SQL cast; add a new column and copy the data ' \
+                   'in a maintenance task.'
+        OPTIONS_MSG = 'Write out the `change_column` options so `using:` SQL casts can be checked.'
+        NULL_MSG = 'The `change_column_null` replacement value updates existing rows; ' \
+                   'backfill them in a maintenance task first.'
+
+        private
+
+        # `change_column`, or `t.change` inside a `change_table` block.
+        def column_change?(node)
+          node.method?(:change_column) || (node.method?(:change) && node.receiver&.lvar_type?)
+        end
+
+        def check_null_replacement(node)
+          replacement = node.arguments[3]
+          add_offense(replacement, message: NULL_MSG) unless replacement.nil? || replacement.nil_type?
+        end
+
+        # Only the options themselves: `using:` inside a JSON default is data, not a cast.
+        def check_cast(node)
+          node.arguments.select(&:hash_type?).flat_map(&:children).each { |option| check_cast_option(option) }
+        end
+
+        def check_cast_option(option)
+          if option.kwsplat_type?
+            splatted = option.children.first
+            if splatted.hash_type?
+              splatted.children.each { |nested| check_cast_option(nested) }
+            else
+              add_offense(option, message: OPTIONS_MSG)
+            end
+          elsif option.key.sym_type? && option.key.value == :using
+            add_offense(option, message: CAST_MSG)
+          end
+        end
+      end
+
       # Allows only schema statements in Rails migrations.
       #
       # Migrations change the schema. Raw SQL, model calls and other data
@@ -75,13 +114,12 @@ module RuboCop
       #
       class MigrationSchemaOnly < Base
         include MigrationSchemaOnlyDefaults
+        include MigrationSchemaOnlyColumnChanges
 
         CALL_MSG = 'Use only schema statements in migrations; move `%<name>s` and other data changes ' \
                    'or raw SQL to a maintenance task.'
         CONSTANT_MSG = 'Do not use `%<name>s` in migrations; move data changes and raw SQL to a maintenance task.'
-        CAST_MSG = '`change_column` with `using:` runs a SQL cast; add a new column and copy the data ' \
-                   'in a maintenance task.'
-        OPTIONS_MSG = 'Write out the `change_column` options so `using:` SQL casts can be checked.'
+        SELF_MSG = 'Call schema statements on `self` directly; passing `self` around hides calls from this check.'
 
         # @!method migration_class?(node)
         def_node_matcher :migration_class?, <<~PATTERN
@@ -96,8 +134,8 @@ module RuboCop
           return unless migration_class?(node) && node.body && checked_file?
 
           @defined_methods = node.body.each_node(:def, :defs).map(&:method_name)
-          @defined_constants = node.body.each_node(:casgn).filter_map { |casgn| casgn.name.to_s unless casgn.namespace }
-          node.body.each_node(:send, :csend, :const) { |child| check(child) }
+          @defined_constants = defined_constants(node)
+          node.body.each_node(:send, :csend, :const, :self) { |child| check(child) }
         end
 
         private
@@ -108,16 +146,34 @@ module RuboCop
           start_after.nil? || version.nil? || version.to_i > start_after.to_i
         end
 
+        # Bare and class-qualified names, such as `CONSTRAINT_NAME` and `Example::CONSTRAINT_NAME`.
+        def defined_constants(node)
+          names = node.body.each_node(:casgn).filter_map { |casgn| casgn.name.to_s unless casgn.namespace }
+          names + names.map { |name| "#{node.identifier.source}::#{name}" }
+        end
+
         def check(node)
-          node.const_type? ? check_constant(node) : check_call(node)
+          case node.type
+          when :const then check_constant(node)
+          when :self then check_self(node)
+          else check_call(node)
+          end
         end
 
         def check_call(node)
           if disallowed_call?(node)
             add_offense(node, message: format(CALL_MSG, name: node.method_name))
-          elsif node.method?(:change_column)
+          elsif column_change?(node)
             check_cast(node)
+          elsif node.method?(:change_column_null)
+            check_null_replacement(node)
           end
+        end
+
+        def check_self(node)
+          return if node.parent&.call_type? && node.parent.receiver.equal?(node)
+
+          add_offense(node, message: SELF_MSG)
         end
 
         def disallowed_call?(node)
@@ -133,18 +189,6 @@ module RuboCop
 
         def allowed_call?(name)
           allowed_methods.include?(name.to_s) || @defined_methods.include?(name)
-        end
-
-        def check_cast(node)
-          node.arguments.each do |argument|
-            argument.each_node(:pair, :kwsplat) do |option|
-              if option.kwsplat_type?
-                add_offense(option, message: OPTIONS_MSG) unless option.children.first.hash_type?
-              elsif option.key.sym_type? && option.key.value == :using
-                add_offense(option, message: CAST_MSG)
-              end
-            end
-          end
         end
 
         def check_constant(node)
