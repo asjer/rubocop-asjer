@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/asjer/rubocop-asjer/compare/v0.4.5...v0.5.0) (2026-10-15)
+
+
+### Features
+
+* add MigrationSchemaOnly and ExplicitMigrationVersionInSpec cops ([316938a](https://github.com/asjer/rubocop-asjer/commit/316938ae96076d82458186759c2f341b2a44849f)), closes [#54](https://github.com/asjer/rubocop-asjer/issues/54)
+
 ## [0.4.5](https://github.com/asjer/rubocop-asjer/compare/v0.4.4...v0.4.5) (2026-03-08)
 
 
