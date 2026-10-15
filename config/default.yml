@@ -1,3 +1,86 @@
+Asjer/ExplicitMigrationVersionInSpec:
+  Description: Requires migration specs to run migrations to an explicit version.
+  Enabled: true
+  VersionAdded: "0.5.0"
+  Include:
+    - 'spec/migrations/**/*_spec.rb'
+
+Asjer/MigrationSchemaOnly:
+  Description: Allows only schema statements in Rails migrations; move data changes and raw SQL to a maintenance task.
+  Enabled: true
+  VersionAdded: "0.5.0"
+  Include:
+    - 'db/migrate/**/*.rb'
+  # Version of the last existing migration; earlier migrations are not checked.
+  StartAfter: ~
+  AllowedMethods:
+    - create_table
+    - create_join_table
+    - change_table
+    - rename_table
+    - drop_table
+    - drop_join_table
+    - add_column
+    - remove_column
+    - remove_columns
+    - rename_column
+    - change_column
+    - change_column_default
+    - change_column_null
+    - change_column_comment
+    - change_table_comment
+    - add_timestamps
+    - remove_timestamps
+    - add_index
+    - remove_index
+    - rename_index
+    - add_reference
+    - remove_reference
+    - add_belongs_to
+    - remove_belongs_to
+    - add_foreign_key
+    - remove_foreign_key
+    - add_check_constraint
+    - remove_check_constraint
+    - validate_check_constraint
+    - validate_foreign_key
+    - validate_constraint
+    - add_exclusion_constraint
+    - remove_exclusion_constraint
+    - add_unique_constraint
+    - remove_unique_constraint
+    - enable_extension
+    - disable_extension
+    - create_enum
+    - drop_enum
+    - rename_enum
+    - add_enum_value
+    - rename_enum_value
+    - create_schema
+    - drop_schema
+    - create_virtual_table
+    - drop_virtual_table
+    - table_exists?
+    - column_exists?
+    - index_exists?
+    - index_name_exists?
+    - foreign_key_exists?
+    - check_constraint_exists?
+    - extension_enabled?
+    - view_exists?
+    - reversible
+    - revert
+    - up_only
+    - say
+    - say_with_time
+    - suppress_messages
+    - disable_ddl_transaction!
+    - raise
+    - private
+  AllowedConstants:
+    - ActiveRecord::IrreversibleMigration
+    - Rails
+
 Asjer/NoDefaultTranslation:
   Description: Checks for use of the `default:` option in translation calls.
   Enabled: true

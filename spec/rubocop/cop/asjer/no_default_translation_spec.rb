@@ -3,7 +3,6 @@
 RSpec.describe RuboCop::Cop::Asjer::NoDefaultTranslation, :config do
   let(:config) { RuboCop::Config.new }
 
-  # rubocop:disable RSpec/ExampleLength
   it 'registers an offense and autocorrects when using t with default option' do
     expect_offense(<<~RUBY)
       t('some.key', default: 'fallback text')
@@ -69,7 +68,6 @@ RSpec.describe RuboCop::Cop::Asjer::NoDefaultTranslation, :config do
       I18n.t('some.key', scope: :foo)
     RUBY
   end
-  # rubocop:enable RSpec/ExampleLength
 
   it 'does not register an offense when using t without default' do
     expect_no_offenses(<<~RUBY)
