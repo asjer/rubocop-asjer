@@ -2,6 +2,6 @@
 
 module RuboCop
   module Asjer
-    VERSION = '0.4.5'
+    VERSION = '0.5.0'
   end
 end
