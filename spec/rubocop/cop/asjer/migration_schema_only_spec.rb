@@ -137,6 +137,9 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
               t.change_null :source, false, 'web'
                                             ^^^^^ #{null_msg}
               t.change_null :source, false
+              table = t
+              table.change_null :source, false, 'web'
+                                                ^^^^^ #{null_msg}
             end
           end
         end
@@ -217,6 +220,9 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
             change_table :bookings do |t|
               t.change :date, :date, using: 'date::date'
                                      ^^^^^^^^^^^^^^^^^^^ #{cast_msg}
+              table = t
+              table.change :date, :date, using: 'date::date'
+                                         ^^^^^^^^^^^^^^^^^^^ #{cast_msg}
             end
             options = { using: 'date::date' }
             change_column :bookings, :date, :date, **options

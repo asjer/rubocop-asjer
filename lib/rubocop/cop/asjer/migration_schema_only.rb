@@ -47,16 +47,17 @@ module RuboCop
 
         private
 
-        # `change_column`, or `t.change` inside a `change_table` block.
+        # `change_column`, or `t.change` inside a `change_table` block. Any local receiver counts,
+        # so an alias such as `table = t` is checked too.
         def column_change?(node)
-          node.method?(:change_column) || (node.method?(:change) && block_argument?(node.receiver))
+          node.method?(:change_column) || (node.method?(:change) && node.receiver&.lvar_type?)
         end
 
         # The replacement value of `change_column_null`, or of `t.change_null` inside a `change_table` block.
         def null_replacement(node)
           if node.method?(:change_column_null)
             node.arguments[3]
-          elsif node.method?(:change_null) && block_argument?(node.receiver)
+          elsif node.method?(:change_null) && node.receiver&.lvar_type?
             node.arguments[2]
           end
         end
