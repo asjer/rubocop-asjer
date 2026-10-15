@@ -102,6 +102,9 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
             [].instance_eval { execute 'SELECT 1' }
             ^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'instance_eval')}
                                ^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'execute')}
+            target = ''
+            target.instance_eval("ActiveRecord::Base.connection.execute('DELETE FROM bookings')")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{format(call_msg, name: 'instance_eval')}
             create_table :examples do |t|
               t.public_send :string, :status
             end
@@ -130,6 +133,11 @@ RSpec.describe RuboCop::Cop::Asjer::MigrationSchemaOnly, :config do
                                                           ^^^^^ #{null_msg}
             change_column_null :bookings, :source, false
             change_column_null :bookings, :source, false, nil
+            change_table :bookings do |t|
+              t.change_null :source, false, 'web'
+                                            ^^^^^ #{null_msg}
+              t.change_null :source, false
+            end
           end
         end
       RUBY

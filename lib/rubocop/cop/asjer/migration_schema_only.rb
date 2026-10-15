@@ -49,11 +49,19 @@ module RuboCop
 
         # `change_column`, or `t.change` inside a `change_table` block.
         def column_change?(node)
-          node.method?(:change_column) || (node.method?(:change) && node.receiver&.lvar_type?)
+          node.method?(:change_column) || (node.method?(:change) && block_argument?(node.receiver))
         end
 
-        def check_null_replacement(node)
-          replacement = node.arguments[3]
+        # The replacement value of `change_column_null`, or of `t.change_null` inside a `change_table` block.
+        def null_replacement(node)
+          if node.method?(:change_column_null)
+            node.arguments[3]
+          elsif node.method?(:change_null) && block_argument?(node.receiver)
+            node.arguments[2]
+          end
+        end
+
+        def check_null_replacement(replacement)
           add_offense(replacement, message: NULL_MSG) unless replacement.nil? || replacement.nil_type?
         end
 
@@ -160,39 +168,6 @@ module RuboCop
           end
         end
 
-        def check_call(node)
-          if disallowed_call?(node)
-            add_offense(node, message: format(CALL_MSG, name: node.method_name))
-          elsif column_change?(node)
-            check_cast(node)
-          elsif node.method?(:change_column_null)
-            check_null_replacement(node)
-          end
-        end
-
-        def check_self(node)
-          return if node.parent&.call_type? && node.parent.receiver.equal?(node)
-          # The target of `def self.name` or `class << self`; their bodies are still checked.
-          return if node.parent&.type?(:defs, :sclass) && node.parent.children.first.equal?(node)
-
-          add_offense(node, message: SELF_MSG)
-        end
-
-        def disallowed_call?(node)
-          receiver = node.receiver
-          if receiver.nil? || receiver.self_type?
-            !allowed_call?(node.method_name)
-          elsif DYNAMIC_CALLS.include?(node.method_name)
-            !receiver.lvar_type?
-          else
-            receiver.variable? && !receiver.lvar_type?
-          end
-        end
-
-        def allowed_call?(name)
-          allowed_methods.include?(name.to_s) || @defined_methods.include?(name)
-        end
-
         def check_constant(node)
           return if namespace?(node) || reverted_migration?(node) || allowed_constant?(node.source)
 
@@ -212,12 +187,53 @@ module RuboCop
           allowed_constants.include?(name.delete_prefix('::')) || @defined_constants.include?(name)
         end
 
+        def allowed_constants
+          cop_config.fetch('AllowedConstants', ALLOWED_CONSTANTS)
+        end
+
+        def check_self(node)
+          return if node.parent&.call_type? && node.parent.receiver.equal?(node)
+          # The target of `def self.name` or `class << self`; their bodies are still checked.
+          return if node.parent&.type?(:defs, :sclass) && node.parent.children.first.equal?(node)
+
+          add_offense(node, message: SELF_MSG)
+        end
+
+        def check_call(node)
+          if disallowed_call?(node)
+            add_offense(node, message: format(CALL_MSG, name: node.method_name))
+          elsif column_change?(node)
+            check_cast(node)
+          elsif (replacement = null_replacement(node))
+            check_null_replacement(replacement)
+          end
+        end
+
+        def disallowed_call?(node)
+          receiver = node.receiver
+          if receiver.nil? || receiver.self_type?
+            !allowed_call?(node.method_name)
+          elsif DYNAMIC_CALLS.include?(node.method_name)
+            !block_argument?(receiver)
+          else
+            receiver.variable? && !receiver.lvar_type?
+          end
+        end
+
+        def allowed_call?(name)
+          allowed_methods.include?(name.to_s) || @defined_methods.include?(name)
+        end
+
         def allowed_methods
           cop_config.fetch('AllowedMethods', ALLOWED_METHODS)
         end
 
-        def allowed_constants
-          cop_config.fetch('AllowedConstants', ALLOWED_CONSTANTS)
+        # A local declared by an enclosing block, such as `t` in `create_table :examples do |t|`.
+        # An ordinary local can hold any object, including the migration itself.
+        def block_argument?(node)
+          node&.lvar_type? && node.each_ancestor(:block).any? do |block|
+            block.argument_list.map(&:name).include?(node.children.first)
+          end
         end
       end
     end
