@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/asjer/rubocop-asjer/compare/v0.5.0...v0.6.0) (2026-10-28)
+
+
+### Features
+
+* **cop:** flag bare login_as calls in system specs ([c4d99a4](https://github.com/asjer/rubocop-asjer/commit/c4d99a42f25072bfc55f5b381c3fe89ff303e391))
+
 ## [0.5.0](https://github.com/asjer/rubocop-asjer/compare/v0.4.5...v0.5.0) (2026-10-15)
 
 
