@@ -161,6 +161,41 @@ migration_context.migrate(20261012170000)
 
 By default, this cop runs on `spec/migrations/**/*_spec.rb`.
 
+### Asjer/SystemSpecLoginAs
+
+Requires unqualified `login_as` calls in system specs to be replaced with an application-provided helper such as `sign_in_and_visit(user, path)`. Warden's handoff applies to whichever request reaches the app server next, not necessarily the browser's intended visit.
+
+Every matching call is reported, including calls in `before` blocks, whether a `visit` follows immediately, later, or not at all. Calls with an explicit receiver, such as `foo.login_as(user)`, are outside this cop's scope.
+
+```ruby
+# bad
+login_as(user)
+visit dashboard_path
+
+before do
+  login_as(user)
+end
+
+# good
+sign_in_and_visit(user, dashboard_path)
+```
+
+By default, this cop only runs on `spec/system/**/*.rb` and is `Enabled: pending`. Opt in explicitly (or enable new cops with `AllCops/NewCops: enable`):
+
+```yaml
+Asjer/SystemSpecLoginAs:
+  Enabled: true
+  Include:
+    - 'spec/system/**/*.rb'
+  MethodNames:
+    - login_as
+  PreferredHelper: sign_in_and_visit
+```
+
+`MethodNames` replaces the default list of methods to flag; `PreferredHelper` changes the helper named in the offense message. Define that helper in your application's system-spec support; this gem does not provide it.
+
+**No autocorrect:** the cop cannot infer the destination path or safely move authentication out of a `before` block.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `bundle exec rspec` to run the tests.

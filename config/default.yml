@@ -165,3 +165,13 @@ Asjer/RailsClassOrder:
     - has_secure_token
     - generates_token_for
     - composed_of
+
+Asjer/SystemSpecLoginAs:
+  Description: Requires system specs to use a helper that signs in and visits together instead of a bare Warden handoff.
+  Enabled: pending
+  VersionAdded: "0.6.0"
+  Include:
+    - 'spec/system/**/*.rb'
+  MethodNames:
+    - login_as
+  PreferredHelper: sign_in_and_visit
